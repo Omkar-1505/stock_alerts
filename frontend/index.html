@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StockPulse Pro | Intelligent Multi-Device Alerts</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background: linear-gradient(135deg, #f0fdf4 0%, #e0f2fe 50%, #f8fafc 100%);
+            min-height: 100vh;
+        }
+        .bg-chart {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-image: url("data:image/svg+xml,%3Csvg width='1200' height='600' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 500 Q 150 400, 300 450 T 600 300 T 900 350 T 1200 150' fill='none' stroke='%23059669' stroke-width='3' stroke-opacity='0.08'/%3E%3Cpath d='M0 550 Q 200 480, 400 500 T 800 400 T 1200 250' fill='none' stroke='%230284c7' stroke-width='2' stroke-opacity='0.05'/%3E%3C/svg%3E");
+            background-size: cover;
+            pointer-events: none;
+            z-index: -1;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.94);
+            backdrop-filter: blur(14px);
+            border: 1px solid rgba(255, 255, 255, 0.8);
+            box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.04);
+        }
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+    </style>
+</head>
+<body class="text-gray-800 flex flex-col items-center relative">
+
+    <div class="bg-chart"></div>
+
+    <!-- Header Navigation -->
+    <header class="w-full glass-card sticky top-0 z-50 border-b border-gray-200">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-2 text-emerald-600">
+                <i data-lucide="trending-up" class="w-6 h-6"></i>
+                <h1 class="text-xl font-bold tracking-tight text-gray-900">StockPulse</h1>
+            </div>
+            
+            <!-- Monthly vs Daily Switcher -->
+            <nav class="flex h-full gap-4">
+                <button onclick="switchTab('monthly')" id="tab-monthly" class="h-full text-sm font-semibold text-emerald-600 border-b-2 border-emerald-600 flex items-center gap-1.5">
+                    Monthly
+                </button>
+                <button onclick="switchTab('daily')" id="tab-daily" class="h-full text-sm font-medium text-gray-500 hover:text-gray-900 flex items-center gap-1.5">
+                    Daily <span class="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.2 rounded font-normal">Auto-Drop</span>
+                </button>
+            </nav>
+
+            <!-- User Status Header -->
+            <div id="user-profile-badge" class="flex items-center gap-3">
+                <div class="hidden sm:flex flex-col text-right">
+                    <span id="header-username" class="text-xs font-bold text-gray-800">Not Logged In</span>
+                    <span id="header-devices-count" class="text-[10px] text-gray-500">0 Devices Active</span>
+                </div>
+                <div class="w-9 h-9 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold text-sm border border-emerald-300" id="user-avatar">
+                    ?
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-6xl w-full mx-auto p-4 sm:p-6 mt-4 grid grid-cols-1 lg:grid-cols-12 gap-8 z-10">
+        
+        <!-- Left Column: Device & Alert Setup -->
+        <div class="lg:col-span-4 space-y-6">
+            
+            <!-- Device Management Card -->
+            <div class="glass-card rounded-2xl p-5 border border-emerald-100 space-y-4">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div id="status-icon" class="p-2.5 rounded-xl bg-orange-100 text-orange-600">
+                            <i data-lucide="smartphone" class="w-5 h-5"></i>
+                        </div>
+                        <div>
+                            <h4 class="text-sm font-bold text-gray-900">Account & Devices</h4>
+                            <p id="device-status-text" class="text-xs text-orange-600 font-medium">Link this device</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Registration Box -->
+                <div id="auth-box" class="space-y-2">
+                    <label class="block text-[11px] font-bold text-gray-500 uppercase">Enter Unique Username</label>
+                    <input type="text" id="username-input" placeholder="e.g. debashis" class="w-full bg-white border border-gray-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none transition">
+                    <button onclick="registerOrLinkDevice()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-2 rounded-xl text-xs font-bold shadow-sm transition flex items-center justify-center gap-2">
+                        <i data-lucide="bell" class="w-4 h-4"></i> Allow Alerts & Link Device
+                    </button>
+                    <p class="text-[10px] text-gray-400">Entering this same username on your other phones or computers links them together.</p>
+                </div>
+
+                <!-- Linked Devices Card -->
+                <div id="device-details-box" class="hidden pt-3 border-t border-gray-100 space-y-2">
+                    <div class="flex justify-between items-center text-xs font-semibold text-gray-700">
+                        <span>Connected Devices:</span>
+                        <span id="active-device-counter" class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-[10px]">0 Connected</span>
+                    </div>
+                    <ul id="device-list" class="divide-y divide-gray-100 text-xs text-gray-600 max-h-32 overflow-y-auto"></ul>
+                    <button onclick="switchUser()" class="text-xs text-gray-500 hover:text-red-600 font-medium pt-1 flex items-center gap-1 transition">
+                        <i data-lucide="log-out" class="w-3.5 h-3.5"></i> Switch Username
+                    </button>
+                </div>
+            </div>
+
+            <!-- Set Alert Form -->
+            <div class="glass-card rounded-2xl p-6 relative">
+                <div id="form-blocker" class="absolute inset-0 bg-white/80 backdrop-blur-[2px] z-20 flex flex-col items-center justify-center rounded-2xl text-center px-4">
+                    <i data-lucide="shield-alert" class="w-8 h-8 text-emerald-600 mb-2"></i>
+                    <p class="text-sm font-semibold text-gray-800">Set and link your username above to configure target alerts</p>
+                </div>
+
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-base font-bold text-gray-900">Set Stock Target</h2>
+                    <span id="form-tab-indicator" class="text-xs font-bold px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-md">Monthly</span>
+                </div>
+                
+                <form onsubmit="handleAlertSubmit(event)" class="space-y-4">
+                    <div class="grid grid-cols-2 gap-2">
+                        <div class="flex bg-gray-100 p-1 rounded-xl border border-gray-200 text-xs font-semibold">
+                            <button type="button" onclick="setExchange('NSE')" id="btn-nse" class="flex-1 py-1.5 rounded-lg bg-emerald-600 text-white shadow">NSE</button>
+                            <button type="button" onclick="setExchange('BSE')" id="btn-bse" class="flex-1 py-1.5 rounded-lg text-gray-500 hover:text-gray-900">BSE</button>
+                        </div>
+                        <div class="flex bg-gray-100 p-1 rounded-xl border border-gray-200 text-xs font-semibold">
+                            <button type="button" onclick="setAssetType('STOCK')" id="btn-stock" class="flex-1 py-1.5 rounded-lg bg-emerald-600 text-white shadow">Stocks</button>
+                            <button type="button" onclick="setAssetType('ETF')" id="btn-etf" class="flex-1 py-1.5 rounded-lg text-gray-500 hover:text-gray-900">ETFs</button>
+                        </div>
+                    </div>
+
+                    <div class="relative">
+                        <label class="block text-[11px] font-bold text-gray-500 mb-1 uppercase">Search Instrument</label>
+                        <input type="text" id="search-input" autocomplete="off" placeholder="e.g. RELIANCE or GOLDBEES" oninput="handleSearch(this.value)" class="w-full bg-white border border-gray-300 rounded-xl px-3.5 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none transition" required>
+                        <input type="hidden" id="selected-symbol">
+                        <div id="suggestions-box" class="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-xl max-h-48 overflow-y-auto hidden z-30 divide-y divide-gray-100"></div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-[11px] font-bold text-gray-500 mb-1 uppercase">Target (₹)</label>
+                            <input type="number" step="any" id="target-price" placeholder="0.00" class="w-full bg-white border border-gray-300 rounded-xl px-3.5 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none" required>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold text-gray-500 mb-1 uppercase">Buffer Band</label>
+                            <select id="buffer-band" class="w-full bg-white border border-gray-300 rounded-xl px-3.5 py-2 text-sm outline-none">
+                                <option value="1.0">± 1.0%</option>
+                                <option value="1.5" selected>± 1.5%</option>
+                                <option value="2.0">± 2.0%</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-[11px] font-bold text-gray-500 mb-1 uppercase">Trade Action Bias</label>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button type="button" onclick="setActionType('BUY')" id="btn-buy" class="py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm transition"><i data-lucide="arrow-down-to-line" class="w-4 h-4"></i> BUY</button>
+                            <button type="button" onclick="setActionType('SELL')" id="btn-sell" class="py-2 rounded-xl bg-white border border-gray-300 text-gray-600 text-xs font-bold flex items-center justify-center gap-1.5 transition"><i data-lucide="arrow-up-from-line" class="w-4 h-4"></i> SELL</button>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 rounded-xl text-sm transition shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-2">
+                        <i data-lucide="plus" class="w-4 h-4"></i> Save Target Alert
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Right Column: Watchlist Grid -->
+        <div class="lg:col-span-8">
+            <div class="glass-card rounded-2xl p-6 min-h-[550px] flex flex-col justify-between">
+                <div>
+                    <div class="flex justify-between items-center mb-6 border-b border-gray-100 pb-4">
+                        <div>
+                            <h2 id="list-title" class="text-base font-bold text-gray-900">Monthly Watchlist</h2>
+                            <p id="list-description" class="text-xs text-gray-500 mt-0.5"><span id="active-count-tag" class="font-semibold text-emerald-600">0/15</span> Active Slots (1-Hour Notification Cooldown)</p>
+                        </div>
+                    </div>
+                    
+                    <div id="slots-container" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+                </div>
+
+                <div class="pt-4 border-t border-gray-100 flex justify-between items-center text-[11px] text-gray-400">
+                    <span>Engine: Multi-Device WebPush Synchronized</span>
+                    <span id="market-status-indicator">Daily targets purge automatically after market close (15:30 IST)</span>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        let currentTab = "monthly";
+        let currentExchange = "NSE";
+        let currentAssetType = "STOCK";
+        let currentActionType = "BUY";
+        let publicVapidKey = "";
+        let marketDataset = [];
+        let username = localStorage.getItem('pulse_username') || "";
+
+        window.onload = async function() {
+            lucide.createIcons();
+            setActionType('BUY');
+            await loadMarketJSON();
+
+            try {
+                const res = await fetch('/api/vapid-public-key');
+                const data = await res.json();
+                publicVapidKey = data.public_key;
+            } catch(e) { console.error("VAPID fetch error:", e); }
+
+            if (username) {
+                await syncUserData();
+            }
+        };
+
+        async function syncUserData() {
+            document.getElementById('header-username').innerText = username;
+            document.getElementById('user-avatar').innerText = username.charAt(0).toUpperCase();
+
+            // First ensure this device is actively subscribed
+            const isSubscribed = await subscribeThisDevice();
+
+            // Fetch live device state from DB
+            const devRes = await fetch(`/api/devices?username=${encodeURIComponent(username)}`);
+            const devData = await devRes.json();
+
+            document.getElementById('header-devices-count').innerText = `${devData.device_count} Device(s) Active`;
+            document.getElementById('active-device-counter').innerText = `${devData.device_count} Connected`;
+
+            const deviceListEl = document.getElementById('device-list');
+            deviceListEl.innerHTML = devData.devices.map(d => `
+                <li class="py-1 flex items-center justify-between">
+                    <span class="flex items-center gap-1.5"><i data-lucide="${d.device_type === 'MOBILE' ? 'smartphone' : 'monitor'}" class="w-3.5 h-3.5 text-gray-500"></i> ${d.device_name}</span>
+                    <span class="text-[10px] text-emerald-600 font-semibold">Online</span>
+                </li>
+            `).join('');
+
+            document.getElementById('auth-box').classList.add('hidden');
+            document.getElementById('device-details-box').classList.remove('hidden');
+            document.getElementById('form-blocker').style.display = 'none';
+
+            if (isSubscribed && devData.device_count > 0) {
+                document.getElementById('device-status-text').innerText = "Verified & Synchronized";
+                document.getElementById('device-status-text').className = "text-xs text-emerald-600 font-semibold";
+                document.getElementById('status-icon').className = "p-2.5 rounded-xl bg-emerald-100 text-emerald-600";
+            } else {
+                document.getElementById('device-status-text').innerText = "Notification Permission Needed";
+                document.getElementById('device-status-text').className = "text-xs text-orange-600 font-semibold";
+            }
+
+            loadWatchlist();
+            lucide.createIcons();
+        }
+
+        async function registerOrLinkDevice() {
+            const inputVal = document.getElementById('username-input').value.trim().toLowerCase();
+            if (inputVal.length < 3) {
+                alert("Please enter a username of at least 3 characters.");
+                return;
+            }
+            username = inputVal;
+            localStorage.setItem('pulse_username', username);
+            await syncUserData();
+        }
+
+        async function subscribeThisDevice() {
+            if (!('serviceWorker' in navigator) || !('PushManager' in window)) return false;
+            try {
+                // Request explicit permission
+                const permission = await Notification.requestPermission();
+                if (permission !== 'granted') {
+                    console.warn("Notification permission was not granted.");
+                    return false;
+                }
+
+                const reg = await navigator.serviceWorker.register('/sw.js');
+                let sub = await reg.pushManager.getSubscription();
+                
+                if (!sub && publicVapidKey) {
+                    sub = await reg.pushManager.subscribe({
+                        userVisibleOnly: true,
+                        applicationServerKey: urlBase64ToUint8Array(publicVapidKey)
+                    });
+                }
+
+                if (sub) {
+                    const isMobile = /Android|iPhone|iPad/i.test(navigator.userAgent);
+                    const browserName = navigator.userAgent.includes("Chrome") ? "Chrome" : (navigator.userAgent.includes("Safari") ? "Safari" : "Browser");
+                    const os = navigator.userAgent.includes("Windows") ? "Windows" : (navigator.userAgent.includes("Mac") ? "macOS" : (isMobile ? "Mobile" : "Linux"));
+
+                    await fetch('/api/devices/subscribe', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            username: username,
+                            endpoint: sub.endpoint,
+                            keys: {
+                                p256dh: btoa(String.fromCharCode.apply(null, new Uint8Array(sub.getKey('p256dh')))),
+                                auth: btoa(String.fromCharCode.apply(null, new Uint8Array(sub.getKey('auth'))))
+                            },
+                            device_name: `${browserName} on ${os}`,
+                            device_type: isMobile ? 'MOBILE' : 'DESKTOP'
+                        })
+                    });
+                    return true;
+                }
+            } catch (err) {
+                console.error("Device subscription error:", err);
+            }
+            return false;
+        }
+
+        function switchUser() {
+            if (confirm("Disconnect this device and switch username?")) {
+                localStorage.removeItem('pulse_username');
+                location.reload();
+            }
+        }
+
+        async function loadMarketJSON() {
+            try {
+                const response = await fetch('/static/listed_instruments.json');
+                const data = await response.json();
+                marketDataset = data.instruments || [];
+            } catch (e) { console.error("Instruments lookup error:", e); }
+        }
+
+        function handleSearch(query) {
+            const box = document.getElementById('suggestions-box');
+            const trimmed = query.trim().toLowerCase();
+            if (!trimmed) { box.classList.add('hidden'); return; }
+
+            const matches = marketDataset
+                .filter(i => i.exchange === currentExchange && i.type === currentAssetType)
+                .filter(i => i.symbol.toLowerCase().includes(trimmed) || i.name.toLowerCase().includes(trimmed))
+                .slice(0, 8); 
+
+            if (matches.length === 0) {
+                box.innerHTML = `<div class="p-3 text-xs text-gray-400">No matching instrument found</div>`;
+                box.classList.remove('hidden');
+                return;
+            }
+
+            box.innerHTML = matches.map(item => `
+                <div onclick="selectInstrument('${item.symbol}', '${item.name.replace(/'/g, "\\'")}')" class="p-3 hover:bg-emerald-50 cursor-pointer flex justify-between items-center transition">
+                    <div><span class="font-bold text-xs text-gray-900">${item.symbol}</span><span class="text-xs text-gray-500 ml-1">(${item.name})</span></div>
+                </div>
+            `).join('');
+            box.classList.remove('hidden');
+        }
+
+        function selectInstrument(symbol, name) {
+            document.getElementById('search-input').value = `${symbol} - ${name}`;
+            document.getElementById('selected-symbol').value = symbol;
+            document.getElementById('suggestions-box').classList.add('hidden');
+        }
+
+        function setExchange(ex) {
+            currentExchange = ex;
+            document.getElementById('btn-nse').className = `flex-1 py-1.5 rounded-lg text-xs font-semibold ${ex === 'NSE' ? 'bg-emerald-600 text-white shadow' : 'text-gray-500 hover:text-gray-900'}`;
+            document.getElementById('btn-bse').className = `flex-1 py-1.5 rounded-lg text-xs font-semibold ${ex === 'BSE' ? 'bg-emerald-600 text-white shadow' : 'text-gray-500 hover:text-gray-900'}`;
+            document.getElementById('search-input').value = '';
+            document.getElementById('selected-symbol').value = '';
+        }
+
+        function setAssetType(type) {
+            currentAssetType = type;
+            document.getElementById('btn-stock').className = `flex-1 py-1.5 rounded-lg text-xs font-semibold ${type === 'STOCK' ? 'bg-emerald-600 text-white shadow' : 'text-gray-500 hover:text-gray-900'}`;
+            document.getElementById('btn-etf').className = `flex-1 py-1.5 rounded-lg text-xs font-semibold ${type === 'ETF' ? 'bg-emerald-600 text-white shadow' : 'text-gray-500 hover:text-gray-900'}`;
+            document.getElementById('search-input').value = '';
+            document.getElementById('selected-symbol').value = '';
+        }
+
+        function setActionType(act) {
+            currentActionType = act;
+            document.getElementById('btn-buy').className = `py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition ${act === 'BUY' ? 'bg-emerald-600 text-white shadow-sm' : 'bg-white border border-gray-300 text-gray-600'}`;
+            document.getElementById('btn-sell').className = `py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition ${act === 'SELL' ? 'bg-red-600 text-white shadow-sm' : 'bg-white border border-gray-300 text-gray-600'}`;
+        }
+
+        function switchTab(tab) {
+            currentTab = tab;
+            document.getElementById('tab-monthly').className = `h-full text-sm font-semibold flex items-center gap-1.5 ${tab === 'monthly' ? 'text-emerald-600 border-b-2 border-emerald-600' : 'text-gray-500 hover:text-gray-900 border-b-0'}`;
+            document.getElementById('tab-daily').className = `h-full text-sm font-semibold flex items-center gap-1.5 ${tab === 'daily' ? 'text-emerald-600 border-b-2 border-emerald-600' : 'text-gray-500 hover:text-gray-900 border-b-0'}`;
+            
+            document.getElementById('list-title').innerText = `${tab === 'monthly' ? 'Monthly' : 'Daily'} Watchlist`;
+            document.getElementById('form-tab-indicator').innerText = tab === 'monthly' ? 'Monthly' : 'Daily';
+            document.getElementById('list-description').innerHTML = tab === 'monthly' 
+                ? '<span id="active-count-tag" class="font-semibold text-emerald-600">0/15</span> Active Slots (1-Hour Notification Cooldown)'
+                : '<span id="active-count-tag" class="font-semibold text-emerald-600">0/15</span> Daily Slots (Drops Automatically at End of Day)';
+            
+            loadWatchlist();
+        }
+
+        async function handleAlertSubmit(e) {
+            e.preventDefault();
+            const symbol = document.getElementById('selected-symbol').value;
+            if (!symbol) { alert("Please choose an instrument from the search dropdown."); return; }
+
+            const payload = {
+                username: username,
+                list_type: currentTab.toUpperCase(),
+                exchange: currentExchange,
+                symbol: symbol,
+                target: parseFloat(document.getElementById('target-price').value),
+                buffer: parseFloat(document.getElementById('buffer-band').value),
+                action_type: currentActionType
+            };
+
+            const res = await fetch('/api/alerts', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                document.getElementById('search-input').value = "";
+                document.getElementById('selected-symbol').value = "";
+                document.getElementById('target-price').value = "";
+                loadWatchlist();
+            } else {
+                const data = await res.json();
+                alert(data.detail || "Failed to set alert target.");
+            }
+        }
+
+        async function loadWatchlist() {
+            if (!username) return;
+            const res = await fetch(`/api/watchlist/${currentTab}?username=${encodeURIComponent(username)}`);
+            const items = await res.json();
+            
+            document.getElementById('active-count-tag').innerText = `${items.length}/15`;
+            const container = document.getElementById('slots-container');
+            container.innerHTML = "";
+
+            items.forEach((item) => {
+                const isBuy = item.action_type === "BUY";
+                const card = document.createElement('div');
+                card.className = "bg-white border border-gray-200 rounded-xl p-4 shadow-sm hover:shadow-md transition flex flex-col justify-between";
+                card.innerHTML = `
+                    <div class="flex justify-between items-start mb-3">
+                        <div>
+                            <h4 class="font-bold text-gray-900 tracking-tight">${item.symbol} 
+                                <span class="text-[10px] text-gray-500 font-normal ml-1 border border-gray-200 px-1 rounded">${item.exchange}</span>
+                            </h4>
+                        </div>
+                        <span class="px-2.5 py-1 rounded text-[10px] font-bold ${isBuy ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}">
+                            ${item.action_type}
+                        </span>
+                    </div>
+                    <div class="flex justify-between items-end pt-3 border-t border-gray-100 text-xs">
+                        <div>
+                            <p class="text-[10px] text-gray-400 uppercase">Target Price</p>
+                            <span class="font-bold text-gray-900 text-sm">₹${item.target} <span class="text-[11px] font-normal text-gray-500">(±${item.buffer}%)</span></span>
+                        </div>
+                        <button onclick="deleteAlert(${item.id})" class="text-gray-400 hover:text-red-500 p-1.5 transition">
+                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+            lucide.createIcons();
+        }
+
+        async function deleteAlert(id) {
+            await fetch(`/api/watchlist/${id}`, { method: 'DELETE' });
+            loadWatchlist();
+        }
+
+        function urlBase64ToUint8Array(base64String) {
+            const padding = '='.repeat((4 - base64String.length % 4) % 4);
+            const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+            const rawData = window.atob(base64);
+            const outputArray = new Uint8Array(rawData.length);
+            for (let i = 0; i < rawData.length; ++i) outputArray[i] = rawData.charCodeAt(i);
+            return outputArray;
+        }
+    </script>
+</body>
+</html>
