@@ -2,7 +2,7 @@ import json
 import os
 import random
 import time
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone, timedelta, time as dtime
 from concurrent.futures import ThreadPoolExecutor
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
@@ -18,14 +18,27 @@ VAPID_CLAIMS = {"sub": os.getenv("VAPID_ADMIN_EMAIL", "mailto:admin@example.com"
 COOLDOWN_SECONDS = 3600  # 1-hour cooldown between identical stock triggers
 
 IST = timezone(timedelta(hours=5, minutes=30))
+MARKET_CLOSE_TIME = dtime(15, 30)
+
+def get_daily_alert_expiry(created_ist: datetime) -> datetime:
+    """
+    Determines the exact 15:30 IST session close when a DAILY alert expires.
+    Rolls over to the next trading day if created after 15:30 IST or on weekends.
+    """
+    if created_ist.weekday() < 5 and created_ist.time() < MARKET_CLOSE_TIME:
+        target_date = created_ist.date()
+    else:
+        target_date = created_ist.date() + timedelta(days=1)
+        while target_date.weekday() >= 5:  # Skip Saturday (5) and Sunday (6)
+            target_date += timedelta(days=1)
+            
+    return datetime.combine(target_date, MARKET_CLOSE_TIME).replace(tzinfo=IST)
 
 def purge_expired_daily_alerts(db):
-    """Drops any DAILY alert whose calendar day in IST has passed or concluded after 15:30 IST."""
+    """Drops DAILY alerts whose trading session has concluded at or past 15:30 IST."""
     now_ist = datetime.now(IST)
-    today_date = now_ist.date()
-    
     daily_items = db.query(Watchlist).filter(Watchlist.list_type == "DAILY").all()
-    purged_count = 0
+    purged_ids = []
 
     for item in daily_items:
         created_time = item.created_at
@@ -35,14 +48,16 @@ def purge_expired_daily_alerts(db):
             created_time = created_time.replace(tzinfo=timezone.utc)
         
         created_ist = created_time.astimezone(IST)
+        expiry_ist = get_daily_alert_expiry(created_ist)
         
-        if created_ist.date() < today_date or (created_ist.date() == today_date and now_ist.time() >= datetime.strptime("15:30", "%H:%M").time()):
-            db.delete(item)
-            purged_count += 1
+        if now_ist >= expiry_ist:
+            purged_ids.append(item.id)
 
-    if purged_count > 0:
+    if purged_ids:
+        # Fast single SQL query delete
+        db.query(Watchlist).filter(Watchlist.id.in_(purged_ids)).delete(synchronize_session=False)
         db.commit()
-        print(f"🧹 [Auto-Purge] Dropped {purged_count} expired DAILY watchlist item(s).")
+        print(f"🧹 [Auto-Purge @ 15:30] Flushed {len(purged_ids)} expired DAILY watchlist item(s).")
 
 def get_live_price(ticker: str, exchange: str = "NSE") -> float:
     """Waterfall Scraper: Google Finance -> CNBC -> yfinance fallback."""
@@ -187,6 +202,15 @@ def process_single_alert(task_data):
             
     return None
 
+def is_market_hours() -> bool:
+    """Returns True only if current time is Mon-Fri between 09:15 and 15:30 IST."""
+    now_ist = datetime.now(IST)
+    if now_ist.weekday() >= 5:  # Saturday=5, Sunday=6
+        return False
+    market_open = now_ist.replace(hour=9, minute=15, second=0, microsecond=0)
+    market_close = now_ist.replace(hour=15, minute=30, second=0, microsecond=0)
+    return market_open <= now_ist <= market_close
+
 def run_scanner():
     """Main execution block managed by FastAPI BackgroundTasks."""
     now_ist = datetime.now(IST)
@@ -195,9 +219,15 @@ def run_scanner():
 
     db = SessionLocal()
     try:
+        # 1. Flush expired items first (Handles 15:30 IST daily drop)
         purge_expired_daily_alerts(db)
 
-        # 1. Read from DB safely before multithreading
+        # 2. Gatekeeper: Stop execution if outside trading hours
+        if not is_market_hours():
+            print("Action: Cash market closed (Trading hours: 09:15 - 15:30 IST Mon-Fri). Standing by.")
+            return
+
+        # 3. Read from DB safely before multithreading
         db_alerts = db.query(Watchlist).all()
         db_devices = db.query(Device).filter(Device.notifications_enabled == True).all()
 
@@ -205,7 +235,7 @@ def run_scanner():
             print("Action: No active alerts or devices. Standing by.")
             return
 
-        # 2. Package data into thread-safe standard dictionaries
+        # 4. Package data into thread-safe standard dictionaries
         device_map = {}
         for d in db_devices:
             device_map.setdefault(d.username, []).append({
@@ -226,12 +256,12 @@ def run_scanner():
                     "now_utc": now_utc
                 })
 
-        # 3. Execute network requests concurrently
+        # 5. Execute network requests concurrently
         results = []
         with ThreadPoolExecutor(max_workers=10) as executor:
             results = list(executor.map(process_single_alert, tasks))
 
-        # 4. Safely write back to DB on the main thread
+        # 6. Safely write back to DB on the main thread
         for res in results:
             if res:
                 # Update cooldown timestamp
