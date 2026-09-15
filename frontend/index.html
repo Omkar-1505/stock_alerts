@@ -313,8 +313,33 @@
             return false;
         }
 
-        function switchUser() {
+        async function switchUser() {
             if (confirm("Disconnect this device and switch username?")) {
+                // Change button text to show loading state
+                const btn = document.querySelector('button[onclick="switchUser()"]');
+                if (btn) btn.innerHTML = '<i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i> Disconnecting...';
+                lucide.createIcons();
+                
+                try {
+                    const reg = await navigator.serviceWorker.ready;
+                    const sub = await reg.pushManager.getSubscription();
+                    
+                    if (sub) {
+                        // 1. Tell FastAPI to delete this specific endpoint from the PostgreSQL database
+                        await fetch('/api/devices/unlink', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ endpoint: sub.endpoint })
+                        });
+                        
+                        // 2. Unsubscribe the browser from the push service
+                        await sub.unsubscribe();
+                    }
+                } catch (e) {
+                    console.error("Error during device unlink:", e);
+                }
+                
+                // 3. Clear local storage and reload to return to the login screen
                 localStorage.removeItem('pulse_username');
                 location.reload();
             }

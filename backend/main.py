@@ -191,13 +191,25 @@ def delete_alert(item_id: int, db=Depends(get_db)):
         return {"status": "success"}
     raise HTTPException(status_code=404, detail="Alert not found")
 
+class DeviceUnlinkRequest(BaseModel):
+    endpoint: str
+
 @app.post("/api/devices/unlink")
-def unlink_device(endpoint: str, db=Depends(get_db)):
-    device = db.query(Device).filter(Device.endpoint == endpoint).first()
+def unlink_device(req: DeviceUnlinkRequest, db=Depends(get_db)):
+    """Safely unlinks a device by accepting the endpoint URL in the JSON body"""
+    device = db.query(Device).filter(Device.endpoint == req.endpoint).first()
     if device:
         db.delete(device)
         db.commit()
-    return {"status": "success"}
+    return {"status": "success", "message": "Device unlinked successfully"}
+
+# @app.post("/api/devices/unlink")
+# def unlink_device(endpoint: str, db=Depends(get_db)):
+#     device = db.query(Device).filter(Device.endpoint == endpoint).first()
+#     if device:
+#         db.delete(device)
+#         db.commit()
+#     return {"status": "success"}
 
 @app.get("/api/trigger-scan")
 async def trigger_market_scan(token: str = ""):
