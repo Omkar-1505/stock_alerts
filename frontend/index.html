@@ -37,29 +37,35 @@
 
     <!-- Header Navigation -->
     <header class="w-full glass-card sticky top-0 z-50 border-b border-gray-200">
-        <div class="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-            <div class="flex items-center gap-2 text-emerald-600">
-                <i data-lucide="trending-up" class="w-6 h-6"></i>
-                <h1 class="text-xl font-bold tracking-tight text-gray-900">StockPulse</h1>
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
+            
+            <!-- 1. RESPONSIVE & CROPPED LOGO SECTION -->
+            <div class="flex items-center gap-2 sm:gap-3 shrink-0">
+                <!-- CSS Zoom Container: Trims the white borders automatically -->
+                <div class="w-9 h-9 sm:w-11 sm:h-11 shrink-0 overflow-hidden rounded-lg shadow-sm border border-gray-100 bg-white flex items-center justify-center">
+                    <img src="/static/icon.png" alt="StockPulse Logo" class="w-full h-full object-cover scale-[1.40]">
+                </div>
+                <h1 class="text-lg sm:text-xl font-bold tracking-tight text-gray-900 shrink-0">StockPulse</h1>
             </div>
             
-            <!-- Monthly vs Daily Switcher -->
-            <nav class="flex h-full gap-4">
-                <button onclick="switchTab('monthly')" id="tab-monthly" class="h-full text-sm font-semibold text-emerald-600 border-b-2 border-emerald-600 flex items-center gap-1.5">
+            <!-- 2. NAVIGATION (Optimized for mobile) -->
+            <nav class="flex h-full gap-3 sm:gap-4 shrink-0">
+                <button onclick="switchTab('monthly')" id="tab-monthly" class="h-full text-sm font-semibold text-emerald-600 border-b-2 border-emerald-600 flex items-center gap-1.5 whitespace-nowrap">
                     Monthly
                 </button>
-                <button onclick="switchTab('daily')" id="tab-daily" class="h-full text-sm font-medium text-gray-500 hover:text-gray-900 flex items-center gap-1.5">
-                    Daily <span class="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.2 rounded font-normal">Auto-Drop</span>
+                <button onclick="switchTab('daily')" id="tab-daily" class="h-full text-sm font-medium text-gray-500 hover:text-gray-900 flex items-center gap-1.5 whitespace-nowrap">
+                    Daily <span class="hidden md:inline text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.2 rounded font-normal">Auto-Drop</span>
                 </button>
             </nav>
 
-            <!-- User Status Header -->
-            <div id="user-profile-badge" class="flex items-center gap-3">
-                <div class="hidden sm:flex flex-col text-right">
+            <!-- 3. USER PROFILE (Optimized for mobile) -->
+            <div id="user-profile-badge" class="flex items-center gap-3 shrink-0">
+                <!-- Text hidden on small screens, visible on large screens -->
+                <div class="hidden lg:flex flex-col text-right">
                     <span id="header-username" class="text-xs font-bold text-gray-800">Not Logged In</span>
                     <span id="header-devices-count" class="text-[10px] text-gray-500">0 Devices Active</span>
                 </div>
-                <div class="w-9 h-9 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold text-sm border border-emerald-300" id="user-avatar">
+                <div class="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold text-sm border border-emerald-300 shrink-0" id="user-avatar">
                     ?
                 </div>
             </div>
@@ -68,10 +74,8 @@
 
     <main class="max-w-6xl w-full mx-auto p-4 sm:p-6 mt-4 grid grid-cols-1 lg:grid-cols-12 gap-8 z-10">
         
-        <!-- Left Column: Device & Alert Setup -->
         <div class="lg:col-span-4 space-y-6">
             
-            <!-- Device Management Card -->
             <div class="glass-card rounded-2xl p-5 border border-emerald-100 space-y-4">
                 <div class="flex items-center justify-between">
                     <div class="flex items-center gap-3">
@@ -85,7 +89,6 @@
                     </div>
                 </div>
 
-                <!-- Registration Box -->
                 <div id="auth-box" class="space-y-2">
                     <label class="block text-[11px] font-bold text-gray-500 uppercase">Enter Unique Username</label>
                     <input type="text" id="username-input" placeholder="e.g. Harshad Mehta" class="w-full bg-white border border-gray-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none transition">
@@ -95,7 +98,6 @@
                     <p class="text-[10px] text-gray-400">Entering this same username on your other phones or computers links them together.</p>
                 </div>
 
-                <!-- Linked Devices Card -->
                 <div id="device-details-box" class="hidden pt-3 border-t border-gray-100 space-y-2">
                     <div class="flex justify-between items-center text-xs font-semibold text-gray-700">
                         <span>Connected Devices:</span>
@@ -108,7 +110,6 @@
                 </div>
             </div>
 
-            <!-- Set Alert Form -->
             <div class="glass-card rounded-2xl p-6 relative">
                 <div id="form-blocker" class="absolute inset-0 bg-white/80 backdrop-blur-[2px] z-20 flex flex-col items-center justify-center rounded-2xl text-center px-4">
                     <i data-lucide="shield-alert" class="w-8 h-8 text-emerald-600 mb-2"></i>
@@ -120,52 +121,6 @@
                     <span id="form-tab-indicator" class="text-xs font-bold px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-md">Monthly</span>
                 </div>
                 
-                <!-- <form onsubmit="handleAlertSubmit(event)" class="space-y-4">
-                    <div class="grid grid-cols-2 gap-2">
-                        <div class="flex bg-gray-100 p-1 rounded-xl border border-gray-200 text-xs font-semibold">
-                            <button type="button" onclick="setExchange('NSE')" id="btn-nse" class="flex-1 py-1.5 rounded-lg bg-emerald-600 text-white shadow">NSE</button>
-                            <button type="button" onclick="setExchange('BSE')" id="btn-bse" class="flex-1 py-1.5 rounded-lg text-gray-500 hover:text-gray-900">BSE</button>
-                        </div>
-                        <div class="flex bg-gray-100 p-1 rounded-xl border border-gray-200 text-xs font-semibold">
-                            <button type="button" onclick="setAssetType('STOCK')" id="btn-stock" class="flex-1 py-1.5 rounded-lg bg-emerald-600 text-white shadow">Stocks</button>
-                            <button type="button" onclick="setAssetType('ETF')" id="btn-etf" class="flex-1 py-1.5 rounded-lg text-gray-500 hover:text-gray-900">ETFs</button>
-                        </div>
-                    </div>
-
-                    <div class="relative">
-                        <label class="block text-[11px] font-bold text-gray-500 mb-1 uppercase">Search Instrument</label>
-                        <input type="text" id="search-input" autocomplete="off" placeholder="e.g. RELIANCE or GOLDBEES" oninput="handleSearch(this.value)" class="w-full bg-white border border-gray-300 rounded-xl px-3.5 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none transition" required>
-                        <input type="hidden" id="selected-symbol">
-                        <div id="suggestions-box" class="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-xl max-h-48 overflow-y-auto hidden z-30 divide-y divide-gray-100"></div>
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-3">
-                        <div>
-                            <label class="block text-[11px] font-bold text-gray-500 mb-1 uppercase">Target (₹)</label>
-                            <input type="number" step="any" id="target-price" placeholder="0.00" class="w-full bg-white border border-gray-300 rounded-xl px-3.5 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none" required>
-                        </div>
-                        <div>
-                            <label class="block text-[11px] font-bold text-gray-500 mb-1 uppercase">Buffer Band</label>
-                            <select id="buffer-band" class="w-full bg-white border border-gray-300 rounded-xl px-3.5 py-2 text-sm outline-none">
-                                <option value="1.0">± 1.0%</option>
-                                <option value="1.5" selected>± 1.5%</option>
-                                <option value="2.0">± 2.0%</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div>
-                        <label class="block text-[11px] font-bold text-gray-500 mb-1 uppercase">Trade Action Bias</label>
-                        <div class="grid grid-cols-2 gap-2">
-                            <button type="button" onclick="setActionType('BUY')" id="btn-buy" class="py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm transition"><i data-lucide="arrow-down-to-line" class="w-4 h-4"></i> BUY</button>
-                            <button type="button" onclick="setActionType('SELL')" id="btn-sell" class="py-2 rounded-xl bg-white border border-gray-300 text-gray-600 text-xs font-bold flex items-center justify-center gap-1.5 transition"><i data-lucide="arrow-up-from-line" class="w-4 h-4"></i> SELL</button>
-                        </div>
-                    </div>
-
-                    <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 rounded-xl text-sm transition shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-2">
-                        <i data-lucide="plus" class="w-4 h-4"></i> Save Target Alert
-                    </button>
-                </form> -->
                 <form onsubmit="handleAlertSubmit(event)" class="space-y-4">
                     <div class="grid grid-cols-2 gap-2">
                         <div class="flex bg-gray-100 p-1 rounded-xl border border-gray-200 text-xs font-semibold">
@@ -178,26 +133,23 @@
                         </div>
                     </div>
 
-                    <!-- STEP 1: SEARCH & GO BUTTON -->
                     <div class="relative">
                         <label class="block text-[11px] font-bold text-gray-500 mb-1 uppercase">1. Select Asset & Fetch Price</label>
                         <div class="flex gap-2">
-                            <input type="text" id="search-input" autocomplete="off" placeholder="e.g. RELIANCE" oninput="handleSearch(this.value)" class="flex-1 bg-white border border-gray-300 rounded-xl px-3.5 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none transition" required>
-                            <button type="button" id="go-price-btn" onclick="fetchLivePrice()" class="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:text-gray-500 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-sm transition flex items-center gap-1" disabled>
-                                <i data-lucide="zap" class="w-3.5 h-3.5"></i> GO
+                            <input type="text" id="search-input" autocomplete="off" placeholder="e.g. RELIANCE" oninput="handleSearch(this.value)" class="flex-1 min-w-0 bg-white border border-gray-300 rounded-xl px-3.5 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none transition" required>
+                            <button type="button" id="go-price-btn" onclick="fetchLivePrice()" class="shrink-0 w-14 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:text-gray-500 text-white py-2 rounded-xl text-xs font-bold shadow-sm transition flex items-center justify-center" disabled>
+                                GO
                             </button>
                         </div>
                         <input type="hidden" id="selected-symbol">
                         <div id="suggestions-box" class="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-xl max-h-48 overflow-y-auto hidden z-30 divide-y divide-gray-100"></div>
                         
-                        <!-- Live Price Readout -->
                         <div id="live-price-box" class="hidden mt-3 p-3 bg-emerald-50 border border-emerald-100 rounded-xl flex justify-between items-center">
                             <span class="text-xs font-bold text-emerald-800 flex items-center gap-1.5"><i data-lucide="activity" class="w-4 h-4"></i> Current Market Price:</span>
                             <span id="live-price-val" class="text-lg font-bold text-emerald-900 tracking-tight">₹0.00</span>
                         </div>
                     </div>
 
-                    <!-- STEP 2: TARGET ORDER (Locked by default) -->
                     <div id="target-config-section" class="opacity-40 pointer-events-none transition-all duration-300 space-y-4 pt-2 border-t border-gray-100">
                         <div class="grid grid-cols-2 gap-3">
                             <div>
@@ -222,7 +174,7 @@
                             </div>
                         </div>
 
-                        <button type="submit" id="submit-alert-btn" class="w-full bg-gray-900 hover:bg-gray-800 text-white font-semibold py-2.5 rounded-xl text-sm transition shadow-lg flex items-center justify-center gap-2">
+                        <button type="submit" id="submit-alert-btn" class="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-semibold py-2.5 rounded-xl text-sm transition-all duration-300 shadow-lg shadow-emerald-500/30 flex items-center justify-center gap-2">
                             <i data-lucide="bell-plus" class="w-4 h-4"></i> Add to Watchlist
                         </button>
                     </div>
@@ -230,7 +182,6 @@
             </div>
         </div>
 
-        <!-- Right Column: Watchlist Grid -->
         <div class="lg:col-span-8">
             <div class="glass-card rounded-2xl p-6 min-h-[550px] flex flex-col justify-between">
                 <div>
@@ -281,10 +232,8 @@
             document.getElementById('header-username').innerText = username;
             document.getElementById('user-avatar').innerText = username.charAt(0).toUpperCase();
 
-            // First ensure this device is actively subscribed
             const isSubscribed = await subscribeThisDevice();
 
-            // Fetch live device state from DB
             const devRes = await fetch(`/api/devices?username=${encodeURIComponent(username)}`);
             const devData = await devRes.json();
 
@@ -330,7 +279,6 @@
         async function subscribeThisDevice() {
             if (!('serviceWorker' in navigator) || !('PushManager' in window)) return false;
             try {
-                // Request explicit permission
                 const permission = await Notification.requestPermission();
                 if (permission !== 'granted') {
                     console.warn("Notification permission was not granted.");
@@ -376,7 +324,6 @@
 
         async function switchUser() {
             if (confirm("Disconnect this device and switch username?")) {
-                // Change button text to show loading state
                 const btn = document.querySelector('button[onclick="switchUser()"]');
                 if (btn) btn.innerHTML = '<i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i> Disconnecting...';
                 lucide.createIcons();
@@ -386,21 +333,17 @@
                     const sub = await reg.pushManager.getSubscription();
                     
                     if (sub) {
-                        // 1. Tell FastAPI to delete this specific endpoint from the PostgreSQL database
                         await fetch('/api/devices/unlink', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ endpoint: sub.endpoint })
                         });
-                        
-                        // 2. Unsubscribe the browser from the push service
                         await sub.unsubscribe();
                     }
                 } catch (e) {
                     console.error("Error during device unlink:", e);
                 }
                 
-                // 3. Clear local storage and reload to return to the login screen
                 localStorage.removeItem('pulse_username');
                 location.reload();
             }
@@ -408,7 +351,8 @@
 
         async function loadMarketJSON() {
             try {
-                const response = await fetch('/static/listed_instruments.json');
+                // Fixed Absolute Path Mapping
+                const response = await fetch('/listed_instruments.json');
                 const data = await response.json();
                 marketDataset = data.instruments || [];
             } catch (e) { console.error("Instruments lookup error:", e); }
@@ -438,10 +382,20 @@
             box.classList.remove('hidden');
         }
 
+        function lockTargetSection() {
+            document.getElementById('target-config-section').classList.add('opacity-40', 'pointer-events-none');
+            document.getElementById('live-price-box').classList.add('hidden');
+            document.getElementById('target-price').value = "";
+            document.getElementById('go-price-btn').disabled = true;
+        }
+
         function selectInstrument(symbol, name) {
             document.getElementById('search-input').value = `${symbol} - ${name}`;
             document.getElementById('selected-symbol').value = symbol;
             document.getElementById('suggestions-box').classList.add('hidden');
+            
+            lockTargetSection(); 
+            document.getElementById('go-price-btn').disabled = false;
         }
 
         function setExchange(ex) {
@@ -450,6 +404,7 @@
             document.getElementById('btn-bse').className = `flex-1 py-1.5 rounded-lg text-xs font-semibold ${ex === 'BSE' ? 'bg-emerald-600 text-white shadow' : 'text-gray-500 hover:text-gray-900'}`;
             document.getElementById('search-input').value = '';
             document.getElementById('selected-symbol').value = '';
+            lockTargetSection();
         }
 
         function setAssetType(type) {
@@ -458,6 +413,7 @@
             document.getElementById('btn-etf').className = `flex-1 py-1.5 rounded-lg text-xs font-semibold ${type === 'ETF' ? 'bg-emerald-600 text-white shadow' : 'text-gray-500 hover:text-gray-900'}`;
             document.getElementById('search-input').value = '';
             document.getElementById('selected-symbol').value = '';
+            lockTargetSection();
         }
 
         function setActionType(act) {
@@ -480,10 +436,79 @@
             loadWatchlist();
         }
 
+        async function fetchLivePrice() {
+            const symbol = document.getElementById('selected-symbol').value;
+            if (!symbol) return;
+
+            const btn = document.getElementById('go-price-btn');
+            
+            btn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i>';
+            btn.disabled = true;
+            lucide.createIcons();
+
+            try {
+                const res = await fetch(`/api/price?symbol=${encodeURIComponent(symbol)}&exchange=${currentExchange}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    
+                    document.getElementById('live-price-box').classList.remove('hidden');
+                    document.getElementById('live-price-val').innerText = `₹${data.price.toFixed(2)}`;
+                    document.getElementById('target-price').value = data.price.toFixed(2);
+                    
+                    document.getElementById('target-config-section').classList.remove('opacity-40', 'pointer-events-none');
+                } else {
+                    const err = await res.json();
+                    alert(err.detail || "Failed to fetch price. Try again.");
+                }
+            } catch (e) {
+                alert("Network error fetching live price.");
+            } finally {
+                btn.innerHTML = 'GO';
+                btn.disabled = false;
+                lucide.createIcons();
+            }
+        }
+
+        function renderAlertCard(item) {
+            const isBuy = item.action_type === "BUY";
+            const card = document.createElement('div');
+            card.id = `alert-card-${item.id}`;
+            card.className = "bg-white border border-gray-200 rounded-xl p-4 shadow-sm hover:shadow-md transition-all duration-200 flex flex-col justify-between";
+            card.innerHTML = `
+                <div class="flex justify-between items-start mb-3">
+                    <div>
+                        <h4 class="font-bold text-gray-900 tracking-tight">${item.symbol} 
+                            <span class="text-[10px] text-gray-500 font-normal ml-1 border border-gray-200 px-1 rounded">${item.exchange}</span>
+                        </h4>
+                    </div>
+                    <span class="px-2.5 py-1 rounded text-[10px] font-bold ${isBuy ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}">
+                        ${item.action_type}
+                    </span>
+                </div>
+                <div class="flex justify-between items-end pt-3 border-t border-gray-100 text-xs">
+                    <div>
+                        <p class="text-[10px] text-gray-400 uppercase">Target Price</p>
+                        <span class="font-bold text-gray-900 text-sm">₹${item.target} <span class="text-[11px] font-normal text-gray-500">(±${item.buffer}%)</span></span>
+                    </div>
+                    <button onclick="deleteAlert(${item.id})" class="text-gray-400 hover:text-red-500 p-1.5 transition">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                    </button>
+                </div>
+            `;
+            return card;
+        }
+
         async function handleAlertSubmit(e) {
             e.preventDefault();
             const symbol = document.getElementById('selected-symbol').value;
             if (!symbol) { alert("Please choose an instrument from the search dropdown."); return; }
+
+            const submitBtn = document.getElementById('submit-alert-btn');
+            const originalBtnHTML = submitBtn.innerHTML;
+
+            submitBtn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Saving...';
+            submitBtn.disabled = true;
+            lucide.createIcons();
 
             const payload = {
                 username: username,
@@ -495,65 +520,89 @@
                 action_type: currentActionType
             };
 
-            const res = await fetch('/api/alerts', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
+            try {
+                const res = await fetch('/api/alerts', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
 
-            if (res.ok) {
-                document.getElementById('search-input').value = "";
-                document.getElementById('selected-symbol').value = "";
-                document.getElementById('target-price').value = "";
-                loadWatchlist();
-            } else {
-                const data = await res.json();
-                alert(data.detail || "Failed to set alert target.");
+                if (res.ok) {
+                    const data = await res.json();
+                    
+                    document.getElementById('search-input').value = "";
+                    document.getElementById('selected-symbol').value = "";
+                    document.getElementById('target-price').value = "";
+                    lockTargetSection();
+
+                    if (data.item && data.item.list_type.toLowerCase() === currentTab) {
+                        const container = document.getElementById('slots-container');
+                        container.prepend(renderAlertCard(data.item));
+                        
+                        const countTag = document.getElementById('active-count-tag');
+                        const currentCount = parseInt(countTag.innerText.split('/')[0]);
+                        countTag.innerText = `${currentCount + 1}/15`;
+                        
+                        lucide.createIcons();
+                    }
+                } else {
+                    const err = await res.json();
+                    alert(err.detail || "Failed to set alert target.");
+                }
+            } catch (err) {
+                alert("Network error while saving target.");
+            } finally {
+                submitBtn.innerHTML = originalBtnHTML;
+                submitBtn.disabled = false;
+                lucide.createIcons();
             }
         }
 
         async function loadWatchlist() {
             if (!username) return;
-            const res = await fetch(`/api/watchlist/${currentTab}?username=${encodeURIComponent(username)}`);
-            const items = await res.json();
-            
-            document.getElementById('active-count-tag').innerText = `${items.length}/15`;
-            const container = document.getElementById('slots-container');
-            container.innerHTML = "";
+            try {
+                const res = await fetch(`/api/watchlist/${currentTab}?username=${encodeURIComponent(username)}`);
+                if (!res.ok) return;
+                const items = await res.json();
+                
+                document.getElementById('active-count-tag').innerText = `${items.length}/15`;
+                const container = document.getElementById('slots-container');
+                container.innerHTML = "";
 
-            items.forEach((item) => {
-                const isBuy = item.action_type === "BUY";
-                const card = document.createElement('div');
-                card.className = "bg-white border border-gray-200 rounded-xl p-4 shadow-sm hover:shadow-md transition flex flex-col justify-between";
-                card.innerHTML = `
-                    <div class="flex justify-between items-start mb-3">
-                        <div>
-                            <h4 class="font-bold text-gray-900 tracking-tight">${item.symbol} 
-                                <span class="text-[10px] text-gray-500 font-normal ml-1 border border-gray-200 px-1 rounded">${item.exchange}</span>
-                            </h4>
-                        </div>
-                        <span class="px-2.5 py-1 rounded text-[10px] font-bold ${isBuy ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}">
-                            ${item.action_type}
-                        </span>
-                    </div>
-                    <div class="flex justify-between items-end pt-3 border-t border-gray-100 text-xs">
-                        <div>
-                            <p class="text-[10px] text-gray-400 uppercase">Target Price</p>
-                            <span class="font-bold text-gray-900 text-sm">₹${item.target} <span class="text-[11px] font-normal text-gray-500">(±${item.buffer}%)</span></span>
-                        </div>
-                        <button onclick="deleteAlert(${item.id})" class="text-gray-400 hover:text-red-500 p-1.5 transition">
-                            <i data-lucide="trash-2" class="w-4 h-4"></i>
-                        </button>
-                    </div>
-                `;
-                container.appendChild(card);
-            });
-            lucide.createIcons();
+                items.forEach((item) => {
+                    container.appendChild(renderAlertCard(item));
+                });
+                lucide.createIcons();
+            } catch (err) {
+                console.error("Error loading watchlist:", err);
+            }
         }
 
         async function deleteAlert(id) {
-            await fetch(`/api/watchlist/${id}`, { method: 'DELETE' });
-            loadWatchlist();
+            const cardEl = document.getElementById(`alert-card-${id}`);
+            if (cardEl) {
+                cardEl.style.opacity = '0.3';
+                cardEl.style.pointerEvents = 'none';
+            }
+
+            try {
+                const res = await fetch(`/api/watchlist/${id}`, { method: 'DELETE' });
+                if (res.ok) {
+                    if (cardEl) cardEl.remove();
+                    loadWatchlist();
+                } else {
+                    if (cardEl) {
+                        cardEl.style.opacity = '1';
+                        cardEl.style.pointerEvents = 'auto';
+                    }
+                    alert("Failed to delete alert.");
+                }
+            } catch (e) {
+                if (cardEl) {
+                    cardEl.style.opacity = '1';
+                    cardEl.style.pointerEvents = 'auto';
+                }
+            }
         }
 
         function urlBase64ToUint8Array(base64String) {
@@ -563,61 +612,6 @@
             const outputArray = new Uint8Array(rawData.length);
             for (let i = 0; i < rawData.length; ++i) outputArray[i] = rawData.charCodeAt(i);
             return outputArray;
-        }
-
-        // Function to lock the target section
-        function lockTargetSection() {
-            document.getElementById('target-config-section').classList.add('opacity-40', 'pointer-events-none');
-            document.getElementById('live-price-box').classList.add('hidden');
-            document.getElementById('target-price').value = "";
-            document.getElementById('go-price-btn').disabled = true;
-        }
-
-        // Update selectInstrument to unlock the GO button
-        function selectInstrument(symbol, name) {
-            document.getElementById('search-input').value = `${symbol} - ${name}`;
-            document.getElementById('selected-symbol').value = symbol;
-            document.getElementById('suggestions-box').classList.add('hidden');
-            
-            lockTargetSection(); 
-            document.getElementById('go-price-btn').disabled = false; // Enable GO button
-        }
-
-        // Function to fetch the price and unlock the form
-        async function fetchLivePrice() {
-            const symbol = document.getElementById('selected-symbol').value;
-            if (!symbol) return;
-
-            const btn = document.getElementById('go-price-btn');
-            const originalText = btn.innerHTML;
-            
-            btn.innerHTML = '<i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i> Fetching...';
-            btn.disabled = true;
-            lucide.createIcons();
-
-            try {
-                const res = await fetch(`/api/price?symbol=${encodeURIComponent(symbol)}&exchange=${currentExchange}`);
-                if (res.ok) {
-                    const data = await res.json();
-                    
-                    // Unhide live price and pre-fill target
-                    document.getElementById('live-price-box').classList.remove('hidden');
-                    document.getElementById('live-price-val').innerText = `₹${data.price.toFixed(2)}`;
-                    document.getElementById('target-price').value = data.price.toFixed(2);
-                    
-                    // Unlock the target configuration area
-                    document.getElementById('target-config-section').classList.remove('opacity-40', 'pointer-events-none');
-                } else {
-                    const err = await res.json();
-                    alert(err.detail || "Failed to fetch price. Try again.");
-                }
-            } catch (e) {
-                alert("Network error fetching live price.");
-            } finally {
-                btn.innerHTML = originalText;
-                btn.disabled = false;
-                lucide.createIcons();
-            }
         }
     </script>
 </body>

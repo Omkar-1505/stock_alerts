@@ -60,15 +60,31 @@ def purge_expired_daily_alerts(db):
         print(f"🧹 [Auto-Purge @ 15:30] Flushed {len(purged_ids)} expired DAILY watchlist item(s).")
 
 def get_live_price(ticker: str, exchange: str = "NSE") -> float:
-    """Waterfall Scraper: Google Finance -> CNBC -> yfinance fallback."""
+    """
+    Waterfall Scraper: Google Finance -> CNBC -> yfinance.
+    During after-hours, prioritizes yfinance 1-day candle for the official VWAP close.
+    """
     user_agents = [
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/115.0.0.0 Safari/537.36",
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 Safari/605.1.15",
     ]
     headers = {"User-Agent": random.choice(user_agents)}
 
+    live_session = is_market_hours()
+
+    # 1. AFTER HOURS: Prioritize yfinance 1d candle for the settled official VWAP close
+    if not live_session:
+        try:
+            yf_ticker = f"{ticker.upper()}.NS" if exchange.upper() == "NSE" else f"{ticker.upper()}.BO"
+            df = yf.Ticker(yf_ticker).history(period="1d", interval="1d")
+            if not df.empty:
+                return round(float(df['Close'].iloc[-1]), 2)
+        except Exception:
+            pass
+
+    # 2. LIVE HOURS PRIMARY: Google Finance HTML Scraper
     try:
-        url = f"https://www.google.com/finance/quote/{ticker}:{exchange}"
+        url = f"https://www.google.com/finance/quote/{ticker.upper()}:{exchange.upper()}"
         res = requests.get(url, headers=headers, timeout=5)
         if res.status_code == 200:
             soup = BeautifulSoup(res.text, 'html.parser')
@@ -78,8 +94,9 @@ def get_live_price(ticker: str, exchange: str = "NSE") -> float:
     except Exception:
         pass
 
+    # 3. LIVE HOURS SECONDARY: CNBC Fallback
     try:
-        cnbc_ticker = f"{ticker}.NS" if exchange.upper() == "NSE" else f"{ticker}.BO"
+        cnbc_ticker = f"{ticker.upper()}.NS" if exchange.upper() == "NSE" else f"{ticker.upper()}.BO"
         url_cnbc = f"https://www.cnbc.com/quotes/{cnbc_ticker}"
         res_cnbc = requests.get(url_cnbc, headers=headers, timeout=5)
         if res_cnbc.status_code == 200:
@@ -90,14 +107,13 @@ def get_live_price(ticker: str, exchange: str = "NSE") -> float:
     except Exception:
         pass
 
-    try:
-        yf_ticker = f"{ticker}.NS" if exchange.upper() == "NSE" else f"{ticker}.BO"
-        stock = yf.Ticker(yf_ticker)
-        df = stock.history(period="1d", interval="1m")
-        if not df.empty:
-            return round(float(df['Close'].iloc[-1]), 2)
-    except Exception as e:
-        print(f"[{ticker}] All price sources failed: {e}")
+    # 4. LIVE HOURS BACKUP: yfinance fast_info (Real-time snapshot)
+    if live_session:
+        try:
+            yf_ticker = f"{ticker.upper()}.NS" if exchange.upper() == "NSE" else f"{ticker.upper()}.BO"
+            return round(float(yf.Ticker(yf_ticker).fast_info['lastPrice']), 2)
+        except Exception as e:
+            print(f"[{ticker}] All price sources failed: {e}")
 
     return None
 

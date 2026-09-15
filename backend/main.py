@@ -1,6 +1,5 @@
 import os
 import sys
-import base64
 import asyncio
 from datetime import datetime, timezone
 from dotenv import load_dotenv
@@ -10,13 +9,22 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from typing import Optional
-from worker import run_scanner, purge_expired_daily_alerts, get_live_price
 
-ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
+# --- STRICT PATH RESOLUTION (Matches your exact screenshot) ---
+# __file__ is inside the 'backend' folder
+BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
+# ROOT_DIR goes up one level to 'stock_alerts'
+ROOT_DIR = os.path.dirname(BACKEND_DIR) 
+
+# Explicitly map the distinct root-level folders
+FRONTEND_DIR = os.path.join(ROOT_DIR, "frontend")
+STATIC_DIR = os.path.join(ROOT_DIR, "static")
+
+# Ensure worker.py at the root can be imported
 if ROOT_DIR not in sys.path:
     sys.path.append(ROOT_DIR)
 
-from worker import run_scanner, purge_expired_daily_alerts
+from worker import run_scanner, purge_expired_daily_alerts, get_live_price
 from backend.database import Device, SessionLocal, User, Watchlist, init_db
 
 load_dotenv()
@@ -32,23 +40,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Auto-generate dummy icons if missing to prevent Web Push 404 errors
-FRONTEND_DIR = os.path.join(ROOT_DIR, "frontend")
-os.makedirs(FRONTEND_DIR, exist_ok=True)
-ICON_PATH = os.path.join(FRONTEND_DIR, "icon-192.png")
-BADGE_PATH = os.path.join(FRONTEND_DIR, "badge-72.png")
+# Mount the physical 'static' folder (containing icon.png and badge.png)
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
-if not os.path.exists(ICON_PATH):
-    with open(ICON_PATH, "wb") as f:
-        f.write(base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAAPklEQVR42u3PMREAAAgEIDe514+BCrg8uAUtkJycgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAwF0BN0k/wQW3bY4AAAAASUVORK5CYII="))
-
-if not os.path.exists(BADGE_PATH):
-    with open(BADGE_PATH, "wb") as f:
-        f.write(base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAANklEQVR42u3PMREAAAgEIDe514+BDLi4GbgFSVIkSZIkSZIkSZIkSZIkSZIkSZIkSZIkSdL3C1a1Pp/c79x1AAAAAElFTkSuQmCC"))
-
-app.mount("/static", StaticFiles(directory="frontend"), name="static")
-
-# Async Concurrency Lock to prevent queue pile-up delays
 scan_lock = asyncio.Lock()
 
 async def safe_execute_scanner():
@@ -65,6 +59,22 @@ def get_db():
     finally:
         db.close()
 
+# --- EXPLICIT ROUTING FOR FRONTEND FILES ---
+
+@app.get("/")
+def serve_home():
+    return FileResponse(os.path.join(FRONTEND_DIR, "index.html"))
+
+@app.get("/sw.js")
+def serve_sw():
+    return FileResponse(os.path.join(FRONTEND_DIR, "sw.js"), media_type="application/javascript")
+
+@app.get("/listed_instruments.json")
+def serve_instruments():
+    return FileResponse(os.path.join(FRONTEND_DIR, "listed_instruments.json"), media_type="application/json")
+
+
+# --- REQUEST SCHEMAS ---
 class UserAuthRequest(BaseModel):
     username: str = Field(..., min_length=3, max_length=50)
 
@@ -84,14 +94,10 @@ class AlertRequest(BaseModel):
     action_type: str = "BUY"
     list_type: str = "MONTHLY"
 
-@app.get("/")
-def serve_home():
-    return FileResponse("frontend/index.html")
+class DeviceUnlinkRequest(BaseModel):
+    endpoint: str
 
-@app.get("/sw.js")
-def serve_sw():
-    return FileResponse("frontend/sw.js", media_type="application/javascript")
-
+# --- ENDPOINTS ---
 @app.get("/api/vapid-public-key")
 def get_public_key():
     return {"public_key": os.getenv("VAPID_PUBLIC_KEY")}
@@ -181,7 +187,17 @@ def add_alert(alert: AlertRequest, db=Depends(get_db)):
     )
     db.add(new_item)
     db.commit()
-    return {"status": "success", "message": f"{alert.action_type} alert added for {new_item.symbol}"}
+    db.refresh(new_item)
+    
+    return {
+        "status": "success", 
+        "message": f"{alert.action_type} alert added for {new_item.symbol}",
+        "item": {
+            "id": new_item.id, "username": new_item.username, "list_type": new_item.list_type,
+            "exchange": new_item.exchange, "symbol": new_item.symbol, "target": new_item.target,
+            "buffer": new_item.buffer, "action_type": new_item.action_type
+        }
+    }
 
 @app.delete("/api/watchlist/{item_id}")
 def delete_alert(item_id: int, db=Depends(get_db)):
@@ -192,42 +208,25 @@ def delete_alert(item_id: int, db=Depends(get_db)):
         return {"status": "success"}
     raise HTTPException(status_code=404, detail="Alert not found")
 
-class DeviceUnlinkRequest(BaseModel):
-    endpoint: str
-
 @app.post("/api/devices/unlink")
 def unlink_device(req: DeviceUnlinkRequest, db=Depends(get_db)):
-    """Safely unlinks a device by accepting the endpoint URL in the JSON body"""
     device = db.query(Device).filter(Device.endpoint == req.endpoint).first()
     if device:
         db.delete(device)
         db.commit()
     return {"status": "success", "message": "Device unlinked successfully"}
 
-# @app.post("/api/devices/unlink")
-# def unlink_device(endpoint: str, db=Depends(get_db)):
-#     device = db.query(Device).filter(Device.endpoint == endpoint).first()
-#     if device:
-#         db.delete(device)
-#         db.commit()
-#     return {"status": "success"}
-
 @app.get("/api/price")
 async def fetch_live_price_api(symbol: str, exchange: str = "NSE"):
-    """Fetches real-time price on demand via a separate thread to unlock the target UI"""
     price = await asyncio.to_thread(get_live_price, symbol, exchange)
-    
     if price is None:
         raise HTTPException(status_code=404, detail="Failed to fetch live price. Symbol may be invalid.")
-        
     return {"status": "success", "symbol": symbol, "price": price}
 
 @app.get("/api/trigger-scan")
 async def trigger_market_scan(token: str = ""):
     if token != os.getenv("CRON_SECRET", "super_secret_ping"):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized")
-    
-    # Fire task asynchronously, preventing queue buildup
     asyncio.create_task(safe_execute_scanner())
     return {"status": "Market scan dispatched efficiently"}
 

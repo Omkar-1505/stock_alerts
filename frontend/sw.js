@@ -1,26 +1,35 @@
 self.addEventListener('push', function(event) {
-    if (!event.data) return;
-    
-    let payload;
-    try {
-        payload = event.data.json();
-    } catch (e) {
-        payload = { title: "StockPulse Alert", body: event.data.text(), url: '/' };
+    // 1. Guaranteed fallback to prevent Chrome "Site updated in background" spam
+    let payload = { 
+        title: "StockPulse Active", 
+        body: "Market scanner is actively monitoring your targets.", 
+        url: '/' 
+    };
+
+    if (event.data) {
+        try {
+            payload = event.data.json();
+        } catch (e) {
+            payload.body = event.data.text();
+        }
     }
+
+    // 2. Absolute URL guarantees the OS lock-screen can find the icon.png
+    const baseUrl = self.location.origin;
 
     const options = {
         body: payload.body,
-        icon: '/static/icon.png',
-        badge: '/static/badge.png',
+        icon: baseUrl + '/static/icon.png',
+        badge: baseUrl + '/static/badge.png',
         vibrate: [200, 100, 200, 100, 200],
-        tag: 'stockpulse-stream', // CRITICAL FIX: Stops Chrome from flagging as spam
+        tag: 'stockpulse-stream',
         renotify: true,
         data: {
-            dateOfArrival: Date.now(),
             url: payload.url || '/'
         }
     };
 
+    // 3. MUST call showNotification to avoid Chrome penalty
     event.waitUntil(
         self.registration.showNotification(payload.title, options)
     );
@@ -43,7 +52,6 @@ self.addEventListener('notificationclick', function(event) {
         })
     );
 });
-
 
 
 
