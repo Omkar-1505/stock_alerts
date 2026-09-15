@@ -10,8 +10,8 @@ self.addEventListener('push', function(event) {
 
     const options = {
         body: payload.body,
-        icon: '/static/icon-192.png',
-        badge: '/static/badge-72.png',
+        icon: '/static/icon.png',
+        badge: '/static/badge.png',
         vibrate: [200, 100, 200, 100, 200],
         tag: 'stockpulse-stream', // CRITICAL FIX: Stops Chrome from flagging as spam
         renotify: true,
