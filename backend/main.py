@@ -10,6 +10,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from typing import Optional
+from worker import run_scanner, purge_expired_daily_alerts, get_live_price
 
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 if ROOT_DIR not in sys.path:
@@ -210,6 +211,16 @@ def unlink_device(req: DeviceUnlinkRequest, db=Depends(get_db)):
 #         db.delete(device)
 #         db.commit()
 #     return {"status": "success"}
+
+@app.get("/api/price")
+async def fetch_live_price_api(symbol: str, exchange: str = "NSE"):
+    """Fetches real-time price on demand via a separate thread to unlock the target UI"""
+    price = await asyncio.to_thread(get_live_price, symbol, exchange)
+    
+    if price is None:
+        raise HTTPException(status_code=404, detail="Failed to fetch live price. Symbol may be invalid.")
+        
+    return {"status": "success", "symbol": symbol, "price": price}
 
 @app.get("/api/trigger-scan")
 async def trigger_market_scan(token: str = ""):
