@@ -31,49 +31,61 @@
         input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
     </style>
 </head>
-<body class="text-gray-800 flex flex-col items-center relative">
+<body class="text-gray-800 flex flex-col items-center relative min-h-screen">
 
     <div class="bg-chart"></div>
 
     <!-- Header Navigation -->
     <header class="w-full glass-card sticky top-0 z-50 border-b border-gray-200">
-        <div class="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
+        <div class="max-w-6xl mx-auto px-3 sm:px-6 h-16 flex items-center justify-between gap-2 sm:gap-3">
             
-            <!-- 1. RESPONSIVE & CROPPED LOGO SECTION -->
             <div class="flex items-center gap-2 sm:gap-3 shrink-0">
-                <!-- CSS Zoom Container: Trims the white borders automatically -->
-                <div class="w-9 h-9 sm:w-11 sm:h-11 shrink-0 overflow-hidden rounded-lg shadow-sm border border-gray-100 bg-white flex items-center justify-center">
-                    <img src="/static/icon.png" alt="StockPulse Logo" class="w-full h-full object-cover scale-[1.40]">
+                <div class="w-9 h-9 sm:w-10 sm:h-10 shrink-0 overflow-hidden rounded-lg shadow-sm border border-gray-100 bg-white flex items-center justify-center">
+                    <img src="/static/icon.png" alt="StockPulse Logo" class="w-full h-full object-cover scale-[1.35]">
                 </div>
-                <h1 class="text-lg sm:text-xl font-bold tracking-tight text-gray-900 shrink-0">StockPulse</h1>
+                <h1 class="text-base sm:text-xl font-bold tracking-tight text-gray-900 shrink-0">StockPulse</h1>
             </div>
             
-            <!-- 2. NAVIGATION (Optimized for mobile) -->
-            <nav class="flex h-full gap-3 sm:gap-4 shrink-0">
-                <button onclick="switchTab('monthly')" id="tab-monthly" class="h-full text-sm font-semibold text-emerald-600 border-b-2 border-emerald-600 flex items-center gap-1.5 whitespace-nowrap">
+            <nav class="flex h-full gap-2 sm:gap-4 shrink-0">
+                <button onclick="switchTab('monthly')" id="tab-monthly" class="h-full text-xs sm:text-sm font-semibold text-emerald-600 border-b-2 border-emerald-600 flex items-center gap-1.5 whitespace-nowrap">
                     Monthly
                 </button>
-                <button onclick="switchTab('daily')" id="tab-daily" class="h-full text-sm font-medium text-gray-500 hover:text-gray-900 flex items-center gap-1.5 whitespace-nowrap">
+                <button onclick="switchTab('daily')" id="tab-daily" class="h-full text-xs sm:text-sm font-medium text-gray-500 hover:text-gray-900 flex items-center gap-1.5 whitespace-nowrap">
                     Daily <span class="hidden md:inline text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.2 rounded font-normal">Auto-Drop</span>
                 </button>
             </nav>
 
-            <!-- 3. USER PROFILE (Optimized for mobile) -->
-            <div id="user-profile-badge" class="flex items-center gap-3 shrink-0">
-                <!-- Text hidden on small screens, visible on large screens -->
-                <div class="hidden lg:flex flex-col text-right">
-                    <span id="header-username" class="text-xs font-bold text-gray-800">Not Logged In</span>
+            <!-- User Status Header (Interactive Pop-Up Avatar) -->
+            <div id="user-profile-badge" class="flex items-center gap-2 sm:gap-3 shrink-0 relative">
+                <!-- Text hidden on mobile entirely to save space, visible on tablet+ -->
+                <div class="hidden sm:flex flex-col text-right leading-tight">
+                    <span id="header-username" class="text-xs font-bold text-gray-800 max-w-[140px] truncate" title="Username">Not Logged In</span>
                     <span id="header-devices-count" class="text-[10px] text-gray-500">0 Devices Active</span>
                 </div>
-                <div class="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold text-sm border border-emerald-300 shrink-0" id="user-avatar">
+                
+                <!-- Clickable Avatar -->
+                <button onclick="toggleUserDropdown()" class="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold text-xs sm:text-sm border border-emerald-300 shrink-0 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all hover:bg-emerald-200 cursor-pointer" id="user-avatar" aria-label="Open User Menu">
                     ?
+                </button>
+
+                <!-- Floating Dropdown Menu (Smooth CSS Transition) -->
+                <div id="user-dropdown" class="absolute top-full right-0 mt-3 w-56 bg-white/95 backdrop-blur-xl border border-gray-100 rounded-2xl shadow-xl p-4 z-50 transition-all duration-300 opacity-0 invisible transform translate-y-[-10px] pointer-events-none">
+                    <div class="border-b border-gray-100 pb-3 mb-2">
+                        <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-0.5 flex items-center gap-1"><i data-lucide="user" class="w-3 h-3"></i> Signed in as</p>
+                        <p id="dropdown-username" class="text-sm font-bold text-emerald-800 truncate" title="Username">Not Logged In</p>
+                        <p id="dropdown-devices-count" class="text-[10px] text-gray-500 mt-1">0 Devices Connected</p>
+                    </div>
+                    <button onclick="switchUser()" class="w-full text-left text-xs text-gray-600 hover:text-red-600 font-semibold py-1.5 flex items-center gap-2 transition group">
+                        <i data-lucide="log-out" class="w-4 h-4 group-hover:text-red-600"></i> Disconnect & Switch
+                    </button>
                 </div>
             </div>
         </div>
     </header>
 
-    <main class="max-w-6xl w-full mx-auto p-4 sm:p-6 mt-4 grid grid-cols-1 lg:grid-cols-12 gap-8 z-10">
+    <main class="max-w-6xl w-full mx-auto p-4 sm:p-6 mt-4 grid grid-cols-1 lg:grid-cols-12 gap-8 z-10 flex-grow">
         
+        <!-- Left Column: Device & Alert Setup -->
         <div class="lg:col-span-4 space-y-6">
             
             <div class="glass-card rounded-2xl p-5 border border-emerald-100 space-y-4">
@@ -89,27 +101,44 @@
                     </div>
                 </div>
 
-                <div id="auth-box" class="space-y-2">
+                <!-- Registration Box with Checklist -->
+                <div id="auth-box" class="space-y-3">
+                    <div class="bg-blue-50 border border-blue-200 rounded-xl p-3 mb-2">
+                        <h4 class="text-[11px] font-bold text-blue-900 uppercase flex items-center gap-1.5 mb-1.5">
+                            <i data-lucide="info" class="w-3.5 h-3.5"></i> Delivery Checklist
+                        </h4>
+                        <ul class="text-[10px] text-blue-800 space-y-1.5 list-disc pl-4">
+                            <li><b>Permission:</b> Click "Allow" when the browser prompts.</li>
+                            <li><b>Battery:</b> Set browser battery usage to "Unrestricted".</li>
+                            <li><b>Sound:</b> Ensure browser notifications are unmuted in OS settings.</li>
+                            <li class="text-rose-700 font-semibold"><b>Brave Users:</b> Turn ON "Use Google services for push messaging" in Privacy Settings.</li>
+                        </ul>
+                    </div>
+                    
                     <label class="block text-[11px] font-bold text-gray-500 uppercase">Enter Unique Username</label>
                     <input type="text" id="username-input" placeholder="e.g. Harshad Mehta" class="w-full bg-white border border-gray-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none transition">
                     <button onclick="registerOrLinkDevice()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-2 rounded-xl text-xs font-bold shadow-sm transition flex items-center justify-center gap-2">
-                        <i data-lucide="bell" class="w-4 h-4"></i> Allow Alerts & Link Device
+                        <i data-lucide="bell" class="w-4 h-4"></i> Agree & Link Device
                     </button>
-                    <p class="text-[10px] text-gray-400">Entering this same username on your other phones or computers links them together.</p>
+                    <p class="text-[10px] text-gray-400">Entering this same username on other phones or computers links them together.</p>
                 </div>
 
-                <div id="device-details-box" class="hidden pt-3 border-t border-gray-100 space-y-2">
+                <!-- Linked Devices Card -->
+                <div id="device-details-box" class="hidden pt-3 border-t border-gray-100 space-y-2.5">
+                    <div class="flex items-center justify-between bg-emerald-50/80 border border-emerald-100/80 rounded-xl px-3 py-1.5 text-xs">
+                        <span class="text-[11px] text-gray-500 font-medium">Active User:</span>
+                        <span id="card-username" class="font-bold text-emerald-800 truncate max-w-[160px]"></span>
+                    </div>
+
                     <div class="flex justify-between items-center text-xs font-semibold text-gray-700">
                         <span>Connected Devices:</span>
                         <span id="active-device-counter" class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-[10px]">0 Connected</span>
                     </div>
                     <ul id="device-list" class="divide-y divide-gray-100 text-xs text-gray-600 max-h-32 overflow-y-auto"></ul>
-                    <button onclick="switchUser()" class="text-xs text-gray-500 hover:text-red-600 font-medium pt-1 flex items-center gap-1 transition">
-                        <i data-lucide="log-out" class="w-3.5 h-3.5"></i> Switch Username
-                    </button>
                 </div>
             </div>
 
+            <!-- Set Alert Form -->
             <div class="glass-card rounded-2xl p-6 relative">
                 <div id="form-blocker" class="absolute inset-0 bg-white/80 backdrop-blur-[2px] z-20 flex flex-col items-center justify-center rounded-2xl text-center px-4">
                     <i data-lucide="shield-alert" class="w-8 h-8 text-emerald-600 mb-2"></i>
@@ -188,20 +217,27 @@
                     <div class="flex justify-between items-center mb-6 border-b border-gray-100 pb-4">
                         <div>
                             <h2 id="list-title" class="text-base font-bold text-gray-900">Monthly Watchlist</h2>
-                            <p id="list-description" class="text-xs text-gray-500 mt-0.5"><span id="active-count-tag" class="font-semibold text-emerald-600">0/15</span> Active Slots (1-Hour Notification Cooldown)</p>
+                            <p id="list-description" class="text-xs text-gray-500 mt-0.5"><span id="active-count-tag" class="font-semibold text-emerald-600">0/15</span> Active Slots (3-Hour Notification Cooldown)</p>
                         </div>
                     </div>
                     
                     <div id="slots-container" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
                 </div>
 
-                <div class="pt-4 border-t border-gray-100 flex justify-between items-center text-[11px] text-gray-400">
+                <div class="pt-4 border-t border-gray-100 flex flex-col sm:flex-row justify-between items-center gap-2 text-[11px] text-gray-400 text-center sm:text-left">
                     <span>Engine: Multi-Device WebPush Synchronized</span>
                     <span id="market-status-indicator">Daily targets purge automatically after market close (15:30 IST)</span>
                 </div>
             </div>
         </div>
     </main>
+
+    <!-- Footer Credit -->
+    <footer class="w-full py-6 mt-6 border-t border-gray-200/70 text-center text-xs text-gray-500 z-10">
+        <p class="flex items-center justify-center gap-1.5 font-medium">
+            Made with <span class="text-rose-500">❤️</span> by <span class="font-semibold text-gray-800">Omkar Padhee</span>
+        </p>
+    </footer>
 
     <script>
         let currentTab = "monthly";
@@ -228,9 +264,43 @@
             }
         };
 
+        // UI function for handling the responsive user pop-up
+        function toggleUserDropdown() {
+            const dropdown = document.getElementById('user-dropdown');
+            if (dropdown.classList.contains('opacity-0')) {
+                dropdown.classList.remove('opacity-0', 'invisible', 'translate-y-[-10px]', 'pointer-events-none');
+                dropdown.classList.add('opacity-100', 'visible', 'translate-y-0', 'pointer-events-auto');
+            } else {
+                dropdown.classList.add('opacity-0', 'invisible', 'translate-y-[-10px]', 'pointer-events-none');
+                dropdown.classList.remove('opacity-100', 'visible', 'translate-y-0', 'pointer-events-auto');
+            }
+        }
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(event) {
+            const profileBadge = document.getElementById('user-profile-badge');
+            const dropdown = document.getElementById('user-dropdown');
+            if (profileBadge && dropdown && !profileBadge.contains(event.target)) {
+                dropdown.classList.add('opacity-0', 'invisible', 'translate-y-[-10px]', 'pointer-events-none');
+                dropdown.classList.remove('opacity-100', 'visible', 'translate-y-0', 'pointer-events-auto');
+            }
+        });
+
         async function syncUserData() {
+            // Update username in header, pop-up, and card
             document.getElementById('header-username').innerText = username;
+            document.getElementById('header-username').setAttribute('title', username);
             document.getElementById('user-avatar').innerText = username.charAt(0).toUpperCase();
+            
+            // Pop-up details
+            const dropdownUserEl = document.getElementById('dropdown-username');
+            if (dropdownUserEl) {
+                dropdownUserEl.innerText = username;
+                dropdownUserEl.setAttribute('title', username);
+            }
+
+            const cardUserEl = document.getElementById('card-username');
+            if (cardUserEl) cardUserEl.innerText = username;
 
             const isSubscribed = await subscribeThisDevice();
 
@@ -239,6 +309,9 @@
 
             document.getElementById('header-devices-count').innerText = `${devData.device_count} Device(s) Active`;
             document.getElementById('active-device-counter').innerText = `${devData.device_count} Connected`;
+            
+            const dropDevCountEl = document.getElementById('dropdown-devices-count');
+            if (dropDevCountEl) dropDevCountEl.innerText = `${devData.device_count} Devices Connected`;
 
             const deviceListEl = document.getElementById('device-list');
             deviceListEl.innerHTML = devData.devices.map(d => `
@@ -329,29 +402,29 @@
                 lucide.createIcons();
                 
                 try {
-                    const reg = await navigator.serviceWorker.ready;
-                    const sub = await reg.pushManager.getSubscription();
-                    
-                    if (sub) {
-                        await fetch('/api/devices/unlink', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ endpoint: sub.endpoint })
-                        });
-                        await sub.unsubscribe();
+                    const reg = await navigator.serviceWorker.getRegistration();
+                    if (reg) {
+                        const sub = await reg.pushManager.getSubscription();
+                        if (sub) {
+                            await fetch('/api/devices/unlink', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ endpoint: sub.endpoint })
+                            });
+                            await sub.unsubscribe();
+                        }
                     }
                 } catch (e) {
                     console.error("Error during device unlink:", e);
+                } finally {
+                    localStorage.removeItem('pulse_username');
+                    location.reload();
                 }
-                
-                localStorage.removeItem('pulse_username');
-                location.reload();
             }
         }
 
         async function loadMarketJSON() {
             try {
-                // Fixed Absolute Path Mapping
                 const response = await fetch('/listed_instruments.json');
                 const data = await response.json();
                 marketDataset = data.instruments || [];
@@ -430,8 +503,8 @@
             document.getElementById('list-title').innerText = `${tab === 'monthly' ? 'Monthly' : 'Daily'} Watchlist`;
             document.getElementById('form-tab-indicator').innerText = tab === 'monthly' ? 'Monthly' : 'Daily';
             document.getElementById('list-description').innerHTML = tab === 'monthly' 
-                ? '<span id="active-count-tag" class="font-semibold text-emerald-600">0/15</span> Active Slots (1-Hour Notification Cooldown)'
-                : '<span id="active-count-tag" class="font-semibold text-emerald-600">0/15</span> Daily Slots (Drops Automatically at End of Day)';
+                ? '<span id="active-count-tag" class="font-semibold text-emerald-600">0/15</span> Active Slots (3-Hour Notification Cooldown)'
+                : '<span id="active-count-tag" class="font-semibold text-emerald-600">0/15</span> Daily Slots (3-Hour Cooldown, Purges at 15:30 IST)';
             
             loadWatchlist();
         }
@@ -441,7 +514,6 @@
             if (!symbol) return;
 
             const btn = document.getElementById('go-price-btn');
-            
             btn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i>';
             btn.disabled = true;
             lucide.createIcons();

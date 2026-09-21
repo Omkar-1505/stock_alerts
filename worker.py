@@ -15,7 +15,9 @@ load_dotenv()
 
 VAPID_PRIVATE_KEY = os.getenv("VAPID_PRIVATE_KEY")
 VAPID_CLAIMS = {"sub": os.getenv("VAPID_ADMIN_EMAIL", "mailto:admin@example.com")}
-COOLDOWN_SECONDS = 3600  # 1-hour cooldown between identical stock triggers
+
+# 3-Hour Cooldown between identical stock notifications
+COOLDOWN_SECONDS = 10800
 
 IST = timezone(timedelta(hours=5, minutes=30))
 MARKET_CLOSE_TIME = dtime(15, 30)
@@ -29,7 +31,7 @@ def get_daily_alert_expiry(created_ist: datetime) -> datetime:
         target_date = created_ist.date()
     else:
         target_date = created_ist.date() + timedelta(days=1)
-        while target_date.weekday() >= 5:  # Skip Saturday (5) and Sunday (6)
+        while target_date.weekday() >= 5:
             target_date += timedelta(days=1)
             
     return datetime.combine(target_date, MARKET_CLOSE_TIME).replace(tzinfo=IST)
@@ -54,16 +56,12 @@ def purge_expired_daily_alerts(db):
             purged_ids.append(item.id)
 
     if purged_ids:
-        # Fast single SQL query delete
         db.query(Watchlist).filter(Watchlist.id.in_(purged_ids)).delete(synchronize_session=False)
         db.commit()
         print(f"🧹 [Auto-Purge @ 15:30] Flushed {len(purged_ids)} expired DAILY watchlist item(s).")
 
 def get_live_price(ticker: str, exchange: str = "NSE") -> float:
-    """
-    Waterfall Scraper: Google Finance -> CNBC -> yfinance.
-    During after-hours, prioritizes yfinance 1-day candle for the official VWAP close.
-    """
+    """Waterfall Scraper: Google Finance -> CNBC -> yfinance."""
     user_agents = [
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/115.0.0.0 Safari/537.36",
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 Safari/605.1.15",
@@ -72,7 +70,7 @@ def get_live_price(ticker: str, exchange: str = "NSE") -> float:
 
     live_session = is_market_hours()
 
-    # 1. AFTER HOURS: Prioritize yfinance 1d candle for the settled official VWAP close
+    # 1. AFTER HOURS: Prioritize settled VWAP daily close
     if not live_session:
         try:
             yf_ticker = f"{ticker.upper()}.NS" if exchange.upper() == "NSE" else f"{ticker.upper()}.BO"
@@ -82,7 +80,7 @@ def get_live_price(ticker: str, exchange: str = "NSE") -> float:
         except Exception:
             pass
 
-    # 2. LIVE HOURS PRIMARY: Google Finance HTML Scraper
+    # 2. LIVE HOURS PRIMARY: Google Finance
     try:
         url = f"https://www.google.com/finance/quote/{ticker.upper()}:{exchange.upper()}"
         res = requests.get(url, headers=headers, timeout=5)
@@ -94,7 +92,7 @@ def get_live_price(ticker: str, exchange: str = "NSE") -> float:
     except Exception:
         pass
 
-    # 3. LIVE HOURS SECONDARY: CNBC Fallback
+    # 3. LIVE HOURS SECONDARY: CNBC
     try:
         cnbc_ticker = f"{ticker.upper()}.NS" if exchange.upper() == "NSE" else f"{ticker.upper()}.BO"
         url_cnbc = f"https://www.cnbc.com/quotes/{cnbc_ticker}"
@@ -107,7 +105,7 @@ def get_live_price(ticker: str, exchange: str = "NSE") -> float:
     except Exception:
         pass
 
-    # 4. LIVE HOURS BACKUP: yfinance fast_info (Real-time snapshot)
+    # 4. LIVE HOURS BACKUP: yfinance fast_info
     if live_session:
         try:
             yf_ticker = f"{ticker.upper()}.NS" if exchange.upper() == "NSE" else f"{ticker.upper()}.BO"
@@ -117,133 +115,147 @@ def get_live_price(ticker: str, exchange: str = "NSE") -> float:
 
     return None
 
-def get_technical_advice(ticker: str, exchange: str, action: str) -> dict:
-    """Calculates 14-period RSI and 1-hour momentum."""
+def get_technical_readout(symbol: str, exchange: str, action: str) -> dict:
+    """Calculates Wilder's RSI (14) and 1-hour momentum on 15m candles."""
     try:
-        yf_symbol = f"{ticker}.BO" if exchange.upper() == "BSE" else f"{ticker}.NS"
+        yf_symbol = f"{symbol}.BO" if exchange.upper() == "BSE" else f"{symbol}.NS"
         stock = yf.Ticker(yf_symbol)
-        
         df = stock.history(period="5d", interval="15m")
-        if df.empty or len(df) < 15:
-            df = stock.history(period="1mo", interval="1d")
 
         if df.empty or len(df) < 15:
-            return {"rsi": "N/A", "mom": "N/A", "bias": "Target Met", "summary": "Target reached."}
+            return {"rsi": "N/A", "mom": "N/A", "bias": "Target Met", "summary": "Price reached target level."}
 
         delta = df['Close'].diff()
-        gain = delta.where(delta > 0, 0.0).rolling(window=14).mean()
-        loss = (-delta.where(delta < 0, 0.0)).rolling(window=14).mean()
-        rs = gain / loss.replace(0, 0.001)
-        rsi_series = 100 - (100 / (1 + rs))
-        rsi_val = float(rsi_series.dropna().iloc[-1])
+        gain = delta.clip(lower=0)
+        loss = -delta.clip(upper=0)
+        
+        avg_gain = gain.ewm(alpha=1/14, min_periods=14, adjust=False).mean()
+        avg_loss = loss.ewm(alpha=1/14, min_periods=14, adjust=False).mean()
+        
+        rs = avg_gain / avg_loss.replace(0, 0.001)
+        rsi_val = float((100 - (100 / (1 + rs))).dropna().iloc[-1])
 
         curr_price = float(df['Close'].iloc[-1])
-        ref_idx = -5 if len(df) >= 5 else 0
-        ref_price = float(df['Close'].iloc[ref_idx])
+        ref_price = float(df['Close'].iloc[-5])
         mom_val = ((curr_price - ref_price) / ref_price) * 100
 
         if action.upper() == "BUY":
             if rsi_val <= 35:
-                bias, summary = "Oversold Dip", "Strong accumulation area. Downside momentum stabilizing."
+                bias, summary = "Oversold Range", "Intraday momentum oversold; watch for support."
             elif rsi_val >= 68:
-                bias, summary = "Overbought", "Caution on buy. Extended levels, expect pullback."
+                bias, summary = "Overbought", "Price extended short-term; risk of pullback."
             else:
-                bias, summary = "Healthy Range", "Favorable accumulation zone near support."
+                bias, summary = "Neutral Momentum", "Consolidating within standard range."
         else:
             if rsi_val >= 65:
-                bias, summary = "Profit Booking Zone", "Momentum slowing near resistance. Optimal exit window."
+                bias, summary = "Overbought Exhaustion", "Momentum stretched near resistance."
             elif rsi_val <= 32:
-                bias, summary = "Severely Oversold", "Caution on sell. Bounce probability elevated."
+                bias, summary = "Oversold", "Extended selloff; risk of technical bounce."
             else:
-                bias, summary = "Resistance Hit", "Target ceiling matched. Execute planned exit."
+                bias, summary = "Target Met", "Target matched under normal momentum."
 
         return {"rsi": f"{rsi_val:.1f}", "mom": f"{mom_val:+.2f}%", "bias": bias, "summary": summary}
     except Exception:
-        return {"rsi": "N/A", "mom": "N/A", "bias": "Target Met", "summary": "Target matched."}
+        return {"rsi": "N/A", "mom": "N/A", "bias": "Target Met", "summary": "Alert target reached."}
 
-def process_single_alert(task_data):
-    """Thread-safe worker function for fetching prices and sending notifications."""
-    alert = task_data['alert']
-    devices = task_data['devices']
-    now_utc = task_data['now_utc']
-    
-    price = get_live_price(alert['symbol'], alert['exchange'])
+def process_cluster(cluster_data):
+    """Processes unique stock clusters, applies custom bands in memory, and fans out WebPush."""
+    symbol = cluster_data['symbol']
+    exchange = cluster_data['exchange']
+    user_alerts = cluster_data['alerts']
+    now_utc = cluster_data['now_utc']
+
+    # Fetch live price once per unique stock
+    price = get_live_price(symbol, exchange)
     if price is None:
         return None
 
-    lower = alert['target'] * (1 - alert['buffer'] / 100.0)
-    upper = alert['target'] * (1 + alert['buffer'] / 100.0)
-    
-    print(f"[{alert['symbol']}] Live: ₹{price} | Target: ₹{alert['target']} ({alert['list_type']} Band: ₹{lower:.2f} - ₹{upper:.2f})")
+    # Evaluate all user buffer bands in memory
+    triggered_alerts = []
+    for ua in user_alerts:
+        lower = ua['target'] * (1 - ua['buffer'] / 100.0)
+        upper = ua['target'] * (1 + ua['buffer'] / 100.0)
 
-    if lower <= price <= upper:
-        if alert['last_notified_at']:
-            elapsed = (now_utc - alert['last_notified_at']).total_seconds()
-            if elapsed < COOLDOWN_SECONDS:
-                return None  # Cooldown active
+        if lower <= price <= upper:
+            if ua['last_notified_at']:
+                elapsed = (now_utc - ua['last_notified_at']).total_seconds()
+                if elapsed < COOLDOWN_SECONDS:
+                    continue
+            triggered_alerts.append(ua)
 
-        ta = get_technical_advice(alert['symbol'], alert['exchange'], alert['action_type'])
-        action_icon = "🟢 BUY" if alert['action_type'] == "BUY" else "🔴 SELL"
+    if not triggered_alerts:
+        return None
+
+    # Calculate indicators once per action type
+    has_buys = any(a['action_type'] == "BUY" for a in triggered_alerts)
+    has_sells = any(a['action_type'] == "SELL" for a in triggered_alerts)
+
+    ta_buy = get_technical_readout(symbol, exchange, "BUY") if has_buys else None
+    ta_sell = get_technical_readout(symbol, exchange, "SELL") if has_sells else None
+
+    dead_endpoints = []
+    notified_alert_ids = []
+
+    # Fan-Out to all triggered users concurrently
+    for ua in triggered_alerts:
+        ta = ta_buy if ua['action_type'] == "BUY" else ta_sell
+        action_icon = "🟢 BUY" if ua['action_type'] == "BUY" else "🔴 SELL"
 
         payload = json.dumps({
-            "title": f"{action_icon} {alert['symbol']} ({alert['exchange']}): ₹{price}",
+            "title": f"{action_icon} {symbol} ({exchange}): ₹{price:.2f}",
             "body": (
-                f"Target: ₹{alert['target']} (±{alert['buffer']}%)\n"
-                f"• RSI (14): {ta['rsi']} — {ta['bias']}\n"
-                f"• 1h Mom: {ta['mom']}\n"
-                f"• Strategy: {ta['summary']}"
+                f"Target: ₹{ua['target']} (±{ua['buffer']}%)\n"
+                f"• 15m RSI: {ta['rsi']} — {ta['bias']}\n"
+                f"• Mom (1h): {ta['mom']}\n"
+                f"• Strategy: {ta['summary']}\n"
+                f"• Note: If my work is done delete me otherwise I will notify again"
             ),
-            "url": f"https://in.tradingview.com/chart/?symbol={alert['symbol']}"
+            "url": "/"
         })
 
-        sent_count = 0
-        dead_endpoints = []
-        for dev in devices:
+        sent = False
+        for dev in ua['devices']:
             try:
                 webpush(
                     subscription_info={"endpoint": dev['endpoint'], "keys": {"p256dh": dev['p256dh'], "auth": dev['auth']}},
                     data=payload,
                     vapid_private_key=VAPID_PRIVATE_KEY,
                     vapid_claims=VAPID_CLAIMS,
-                    headers={"Urgency": "high", "TTL": "60"}
+                    headers={"Urgency": "high", "TTL": "3600"}
                 )
-                sent_count += 1
+                sent = True
             except WebPushException as ex:
                 if "410" in str(ex) or "404" in str(ex):
                     dead_endpoints.append(dev['endpoint'])
-        
-        if sent_count > 0:
-            print(f"🚨 Target breached for {alert['symbol']}! Delivered to {sent_count} device(s).")
-            return {"alert_id": alert['id'], "dead_endpoints": dead_endpoints}
-            
-    return None
+
+        if sent:
+            notified_alert_ids.append(ua['id'])
+
+    return {"notified_alert_ids": notified_alert_ids, "dead_endpoints": dead_endpoints}
 
 def is_market_hours() -> bool:
     """Returns True only if current time is Mon-Fri between 09:15 and 15:30 IST."""
     now_ist = datetime.now(IST)
-    if now_ist.weekday() >= 5:  # Saturday=5, Sunday=6
+    if now_ist.weekday() >= 5:
         return False
     market_open = now_ist.replace(hour=9, minute=15, second=0, microsecond=0)
     market_close = now_ist.replace(hour=15, minute=30, second=0, microsecond=0)
     return market_open <= now_ist <= market_close
 
 def run_scanner():
-    """Main execution block managed by FastAPI BackgroundTasks."""
+    """Main execution block with Pub/Sub Alert Clustering."""
     now_ist = datetime.now(IST)
     now_utc = datetime.now(timezone.utc)
     print(f"\n--- [Market Scan Cycle: {now_ist.strftime('%Y-%m-%d %H:%M:%S')} IST] ---")
 
     db = SessionLocal()
     try:
-        # 1. Flush expired items first (Handles 15:30 IST daily drop)
         purge_expired_daily_alerts(db)
 
-        # 2. Gatekeeper: Stop execution if outside trading hours
         if not is_market_hours():
-            print("Action: Cash market closed (Trading hours: 09:15 - 15:30 IST Mon-Fri). Standing by.")
+            print("Action: Cash market closed. Standing by.")
             return
 
-        # 3. Read from DB safely before multithreading
         db_alerts = db.query(Watchlist).all()
         db_devices = db.query(Device).filter(Device.notifications_enabled == True).all()
 
@@ -251,41 +263,52 @@ def run_scanner():
             print("Action: No active alerts or devices. Standing by.")
             return
 
-        # 4. Package data into thread-safe standard dictionaries
         device_map = {}
         for d in db_devices:
             device_map.setdefault(d.username, []).append({
                 "endpoint": d.endpoint, "p256dh": d.p256dh, "auth": d.auth
             })
 
-        tasks = []
+        # Cluster alerts by (symbol, exchange)
+        clusters = {}
         for a in db_alerts:
             if a.username in device_map:
-                last_notified = a.last_notified_at.replace(tzinfo=timezone.utc) if a.last_notified_at else None
-                tasks.append({
-                    "alert": {
-                        "id": a.id, "symbol": a.symbol, "exchange": a.exchange, "target": a.target,
-                        "buffer": a.buffer, "list_type": a.list_type, "action_type": a.action_type,
-                        "last_notified_at": last_notified
-                    },
-                    "devices": device_map[a.username],
-                    "now_utc": now_utc
+                key = (a.symbol, a.exchange)
+                if key not in clusters:
+                    clusters[key] = []
+                
+                clusters[key].append({
+                    "id": a.id, "target": a.target, "buffer": a.buffer,
+                    "action_type": a.action_type, 
+                    "last_notified_at": a.last_notified_at.replace(tzinfo=timezone.utc) if a.last_notified_at else None,
+                    "devices": device_map[a.username]
                 })
 
-        # 5. Execute network requests concurrently
+        cluster_tasks = []
+        for (symbol, exchange), alerts in clusters.items():
+            cluster_tasks.append({
+                "symbol": symbol,
+                "exchange": exchange,
+                "alerts": alerts,
+                "now_utc": now_utc
+            })
+
         results = []
         with ThreadPoolExecutor(max_workers=10) as executor:
-            results = list(executor.map(process_single_alert, tasks))
+            results = list(executor.map(process_cluster, cluster_tasks))
 
-        # 6. Safely write back to DB on the main thread
+        all_notified_ids = []
+        all_dead_endpoints = []
         for res in results:
             if res:
-                # Update cooldown timestamp
-                db.query(Watchlist).filter(Watchlist.id == res['alert_id']).update({"last_notified_at": now_utc})
-                # Drop dead subscriptions
-                if res['dead_endpoints']:
-                    db.query(Device).filter(Device.endpoint.in_(res['dead_endpoints'])).delete(synchronize_session=False)
-        
+                all_notified_ids.extend(res.get("notified_alert_ids", []))
+                all_dead_endpoints.extend(res.get("dead_endpoints", []))
+
+        if all_notified_ids:
+            db.query(Watchlist).filter(Watchlist.id.in_(all_notified_ids)).update({"last_notified_at": now_utc}, synchronize_session=False)
+        if all_dead_endpoints:
+            db.query(Device).filter(Device.endpoint.in_(all_dead_endpoints)).delete(synchronize_session=False)
+            
         db.commit()
 
     except Exception as e:
